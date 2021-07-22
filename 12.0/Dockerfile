@@ -63,8 +63,10 @@ RUN echo "deb http://deb.nodesource.com/node_8.x stretch main" > /etc/apt/source
     && apt-get update \
     && apt-get install --no-install-recommends -y nodejs \
     && npm install -g rtlcss \
-    && rm -rf /var/lib/apt/lists/*
-
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get update \ 
+    && apt-get install -y dos2unix \
+    && apt-get install -y sudo
 # Install Odoo
 ENV ODOO_VERSION 12.0
 ARG ODOO_RELEASE=20210720
@@ -79,20 +81,26 @@ RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/od
 COPY ./entrypoint.sh /
 COPY ./odoo.conf /etc/odoo/
 
+RUN dos2unix ./entrypoint.sh && apt-get --purge remove -y dos2unix && rm -rf /var/lib/apt/lists/*
+
 # Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
+RUN pip3 install -U debugpy
 RUN chown odoo /etc/odoo/odoo.conf \
     && mkdir -p /mnt/extra-addons \
     && chown -R odoo /mnt/extra-addons
 VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
 
 # Expose Odoo services
-EXPOSE 8069 8071 8072
+EXPOSE 8070 8073 8074
 
 # Set the default config file
 ENV ODOO_RC /etc/odoo/odoo.conf
 
 COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
 
+RUN adduser --disabled-password --gecos '' docker
+RUN adduser odoo sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 # Set default user when running the container
 USER odoo
 
